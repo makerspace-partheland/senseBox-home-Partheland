@@ -3,7 +3,7 @@
 Fork von senseBox-homeV2LoRa speziell für die im Partheland verwendeten Stationen für https://opensensemap.org, https://sensoren.makerspace-partheland.de und der Partheland-App in VS Code mit PlatformIO.
 
 ## Einleitung
-Das Repo beinhaltet den Quelltext, die Konfigurationen, Bibliotheken und DOkumentationen für das senseBox-Projekt im Rahmen der SmartCity Umweltmessstationen im Partheland. 
+Das Repo beinhaltet den Quelltext, die Konfigurationen, Bibliotheken und Dokumentationen für das senseBox-Projekt im Rahmen der SmartCity Umweltmessstationen im Partheland. 
 Es ist das Ziel, das Erstellen vieler gleicher Stationen zu vereinheitlichen, zu vereinfachen und zu automatisieren und dennoch die Freiheit zu bieten leicht weitere fertige und selbstgebaute Sensoren zu integrieren und zu verwalten.
 
 ## Verwendete Sensoren:
