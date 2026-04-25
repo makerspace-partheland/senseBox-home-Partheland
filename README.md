@@ -1,58 +1,129 @@
 # senseBox-home-Partheland
 
-Fork von senseBox-homeV2LoRa speziell für die im Partheland verwendeten Stationen für https://opensensemap.org, https://sensoren.makerspace-partheland.de und der Partheland-App in VS Code mit PlatformIO.
+Firmware für senseBox:home-Stationen im Partheland, gebaut mit Visual Studio Code und PlatformIO. Die Firmware ist auf Umweltmessstationen mit LoRaWAN ausgelegt und veröffentlicht Messwerte unter anderem für openSenseMap, die Sensoren-Infrastruktur des Makerspace Partheland und darauf aufbauende Anwendungen.
 
-## Einleitung
-Das Repo beinhaltet den Quelltext, die Konfigurationen, Bibliotheken und Dokumentationen für das senseBox-Projekt im Rahmen der SmartCity Umweltmessstationen im Partheland. 
-Es ist das Ziel, das Erstellen vieler gleicher Stationen zu vereinheitlichen, zu vereinfachen und zu automatisieren und dennoch die Freiheit zu bieten leicht weitere fertige und selbstgebaute Sensoren zu integrieren und zu verwalten.
+Dieses Repository enthält Quellcode, Bibliotheken, Board-Dateien und Beispielkonfigurationen.
 
-## Verwendete Sensoren:
+## Firmwarestand
 
-- HDC1080 (Außentemperatur & rel. Luftfeuchte)
-- Neue Stationen DPS310 - alte Stationen BMP280 (Luftdruck und Gehäusetemperatur)
-- TSL45315 (Beleuchtungsstärke)
-- VEML6070 (UV-Intensität)
-- SDS 011 (Feinstaub PM10 und PM2.5)
-- SDFRobot SEN0232 (Lautstärke)
+Firmwarestand: `2.20`.
 
-## Sonderfall photovoltaik betriebene Stationen mit Akku:
-- 12V 30 Watt monokristallines Solarmodul
-- LiPo Akku 10000mAh
-- Waveshare MPPT 6V~24V Solar Power Management Modul mit entfernten LEDs
-- Adafruit LC709203F LiPoly / LiIon Spannungs und Ladestands Sensor
+## Verwendete Sensoren
+
+- HDC1080: Außentemperatur und relative Luftfeuchte
+- DPS310 oder BMP280: Luftdruck und Gehäusetemperatur
+- TSL45315: Beleuchtungsstärke
+- VEML6070: UV-Intensität
+- SDS011: Feinstaub PM10 und PM2.5
+- DFRobot SEN0232: Lautstärke
+- LC709203F: Akku-Spannung und Ladezustand bei PV-Stationen
+
+## PV-Stationen
+
+Photovoltaikbetriebene Stationen nutzen zusätzlich:
+
+- 12 V / 30 W monokristallines Solarmodul
+- LiPo-Akku mit 10000 mAh
+- Waveshare MPPT 6V~24V Solar Power Management Modul
+- Adafruit LC709203F LiPoly / LiIon Fuel Gauge
 - Feuchtraumdose
-- Isolationsmaterial gegen Kälte- und Wärme für LiPo
-- Je nach Akku-Spannung passt sich das Sendeintervall an, die jeweils gültigen Werte (Stand 2024 verwenden wir diese seit 2 Jahren mit zwei Wintern) sind visuell unter /Dokumente/TX_INTERVAL_Spannung_PV.ods hinterlegt und als Variablen unter /include/pv.h
+- Isolationsmaterial gegen Kälte und Wärme
 
+Je nach Akku-Spannung passt die Firmware das Sendeintervall an. Die Grenzwerte liegen in `include/pv.h`; die zugehörige Übersicht liegt in `Dokumente/TX_INTERVAL_Spannung_PV.ods`.
+
+## Messwertberechnung
+
+### PV-Stationen (`src/main-pv.cpp`)
+
+- Bei `TxInterval == MAX_INTERVAL_S` werden im Sendeintervall 30 Messwerte gesammelt. Daraus werden Median und Maximum berechnet.
+- Bei allen anderen Intervallen wird nur der aktuelle Messwert verwendet. Messwerte werden nach dem Senden geleert.
+
+### Stationen mit fester Stromversorgung (`src/main-default.cpp`)
+
+- Im Sendeintervall werden 30 Messwerte gesammelt. Daraus werden Median und Maximum berechnet.
+
+## LED-Blinkcodes
+
+Die Blinkcodes sind auf zuverlässig erkennbare Fehlerquellen begrenzt. Werte-Heuristiken werden nicht verwendet.
+
+Timing:
+
+- 800 ms an / 500 ms aus pro Blink
+- 3000 ms Pause zwischen Wiederholungen
+- mehrere Fehler gleichzeitig: dauerhaft rot
+- bei Fehlern werden Messungen und Sendungen gestoppt
+- bei dauerhaftem Fehlerzustand erfolgt nach 1 Stunde ein automatischer Neustart
+
+| LED-Zustand | Bedeutung |
+| :---------- | :-------- |
+| Grün blinkend (1x) | LoRa-Join läuft |
+| Grün dauerhaft | Fehlerfreier Betrieb |
+| Rot blinkend (1x) | SDS011: keine neuen Daten nach mehreren Versuchen |
+| Rot blinkend (2x) | LC709203F nicht verbunden oder 0 V gemeldet, nur PV |
+| Rot blinkend (3x) | LoRa-Chip nicht erkannt |
+| Rot dauerhaft | Mehrere Fehler gleichzeitig |
 
 ## Dateien und Verzeichnisse
-* include/: Enthält Header-Dateien, welche als Konfigurationsvorlagen und Konfiguration für die senseBoxen dienen.
-* lib/: Beinhaltet die benötigten Drittanbieter-Bibliotheken. Ggf. sind bestimmte Versionen notwendig, da ansonsten Probleme mit dem senseBoard Board auftreten.
-* src/: Quellcodedateien für die Implementierung der Sensorlogik, für senseBox mit festem Stromanlschluss an 5V und an PV-Module.
-* scripts/: Die Skripte dienen dazu die kompilierte Firmware definiert unter build/ im Unterordner (custom_prog_folder) des Ortes und im Format "firmware_[Verantwortlicher]_[Ort]_[Version und Variante]_[Datum].bin" abzulegen.
 
-      Verantwortlicher kann hier entweder der Makerspace Partheland e.V., hier betreut der Verein direkt die Stationspaten oder SmartCity sein, hier werden die Paten durch die jeweiligen Multiplikatoren in den Kommunen betreut um den Makerspace Partheland e.V. zu entlasten.
+- `include/`: Konfigurationsvorlagen und globale Header
+- `include/**/*.dist`: Beispielkonfigurationen für eigene Stationen
+- `lib/`: eingebundene Bibliotheken
+- `src/`: Firmwarecode für Standard- und PV-Stationen
+- `scripts/`: Build-Skripte für PlatformIO
+- `boards/` und `variants/`: PlatformIO-Boarddefinition für senseBox MCU
+- `Dokumente/`: ergänzende technische Unterlagen
+- `Druckvorlagen/`: 3D-Druckvorlagen
 
-## Nutzung
-Konfiguriere die Sensoren, indem Du die entsprechenden Dateien in include/ anpasst. Die jeweiligen LoRa Zugangsdaten können vom Paten der Station beim Makerspace Partheland e.V. erfragt werden.
+## Konfiguration
 
-Kompiliere nach der Konfiguration deine gewünschte Station durch Auswahl der entsprechenden PlatformIO Projektumgebung und übertrage die Firmware via USB Upload aus PlatformIO oder durch Ablage auf der senseBox:home via Doppelklick-Wechseldatenträgerfreigabe-Methode; die Firmware wird nach dem Kompilieren im Unterordner build/ abgelegt.
+Kopiere eine passende `.dist`-Datei aus `include/` auf eine lokale `.h`-Datei und trage dort die Werte für die eigene Station ein.
 
+Für LoRa kann der XBee-Port über `LORA_XBEE_PORT` gewählt werden:
 
-<br></br>
-# senseBox VS Code PlatformIO Template
+- `1`: XBEE1
+- `2`: XBEE2
 
-Via https://github.com/makerspace-partheland/senseBox
+Mit `LORA_POWER_OFF_UNUSED_PORT` kann der nicht genutzte XBee-Port abgeschaltet werden, um Strom zu sparen. Das gilt für `src/main-default.cpp` und `src/main-pv.cpp`.
 
-Als modernere Alternative zur Arduino IDE nutzen wir im Makerspace Partheland Visual Studio Code mit PlatformIO.
-Um die fehlende senseBox Board Integration in PlatformIO zu überwinden, da das Issue <https://github.com/platformio/platform-atmelsam/pull/169> seit 2021 offen ist, hier ein Ausgangsprojekt mit Board Definition, notwendigem Variants Ordner und Bibliotheken unter lib. 
-Als Quelle diente https://github.com/sensebox/senseBoxMCU-core
+Die angeschlossenen Sensoren werden über Sensor-Flags aktiviert, zum Beispiel:
 
-### Board Definition hinterlegen
+- `HDC1080_CONNECTED`
+- `TSL45315_CONNECTED`
+- `VEML6070_CONNECTED`
+- `SDS011_CONNECTED`
+- `SOUNDLEVELMETER_CONNECTED`
+- `DPS310_CONNECTED` oder `BMP280_CONNECTED`
 
-Analog <https://docs.platformio.org/en/stable/platforms/creating_board.html#id3> die hier im Ordner "boards" hinterlegte sensebox_mcu.json in das Core_dir Verzeichnis im Unterordner boards ablegen --> .platformio/platforms/*/boards/
-Wie finde ich das core_dir: <https://docs.platformio.org/en/stable/projectconf/sections/platformio/options/directory/core_dir.html#projectconf-pio-core-dir>
+Für den SDS011 wird der UART über `SDS_UART_PORT` festgelegt, zum Beispiel `Serial1` oder `Serial2`.
 
-Visual Code mit PlatformIO neu starten, das Board ist nun verfügbar.
+Für den Soundlevel-Sensor wird der Analogeingang über `SOUNDMETERPIN` gesetzt:
 
-!['Project Wizard mit senseBox Board'](https://github.com/makerspace-partheland/senseBox/blob/main/ProjectWizard.png)
+- Digital Port 1: Pins 1 oder 2
+- Digital Port 2: Pins 3 oder 4
+- Digital Port 3: Pins 5 oder 6
+
+`TX_INTERVAL` sollte nicht kleiner als 60 Sekunden sein. Längere Intervalle sind empfehlenswert, um LoRaWAN-Fair-Use und Duty-Cycle einzuhalten.
+
+## Build
+
+Standard-Build:
+
+```sh
+pio run -e default
+```
+
+Build einer konkreten PlatformIO-Umgebung:
+
+```sh
+pio run -e <env>
+```
+
+Die erzeugte Firmware wird über die Build-Skripte im Unterordner `build/` abgelegt.
+
+## senseBox MCU mit PlatformIO
+
+Dieses Projekt enthält eine PlatformIO-Boarddefinition für die senseBox MCU, weil die senseBox-Board-Integration in `platform-atmelsam` nicht direkt verfügbar ist.
+
+Die Datei `boards/sensebox_mcu.json` kann bei Bedarf in das PlatformIO-Core-Verzeichnis unter `platforms/*/boards/` kopiert werden. Das Core-Verzeichnis ist in der PlatformIO-Dokumentation unter `core_dir` beschrieben.
+
+Quelle für Boarddefinition und Variantenordner ist `sensebox/senseBoxMCU-core`.
