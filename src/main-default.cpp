@@ -17,6 +17,7 @@
 #include <hal/hal.h>
 #include <SPI.h>
 #include <senseBoxIO.h>
+#include <led_status.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_Sensor.h>
@@ -92,6 +93,7 @@ static osjob_t measurementjob;
 // Modification for Makerspace Partheland
 bool doNotSendCritical = false; // Do not send if received via downlink CMD
 
+static bool loraReady = false;
 #ifdef DISPLAY128x64_CONNECTED
 static osjob_t displayjob;
 const unsigned DISPLAY_INTERVAL = 5; // update display each 5 seconds
@@ -99,26 +101,56 @@ int unsigned displayPage = 0;
 #endif
 
 // Pin mapping
+#if LORA_XBEE_PORT == 1
 const lmic_pinmap lmic_pins = {
     .nss = PIN_XB1_CS,
     .rxtx = LMIC_UNUSED_PIN,
     .rst = LMIC_UNUSED_PIN,
     .dio = {PIN_XB1_INT, PIN_XB1_INT, LMIC_UNUSED_PIN},
 };
+#elif LORA_XBEE_PORT == 2
+const lmic_pinmap lmic_pins = {
+    .nss = PIN_XB2_CS,
+    .rxtx = LMIC_UNUSED_PIN,
+    .rst = LMIC_UNUSED_PIN,
+    .dio = {PIN_XB2_INT, PIN_XB2_INT, LMIC_UNUSED_PIN},
+};
+#else
+#error "LORA_XBEE_PORT must be 1 or 2"
+#endif
+
+static bool loraRadioPresent()
+{
+  SPI.begin();
+  pinMode(lmic_pins.nss, OUTPUT);
+  digitalWrite(lmic_pins.nss, HIGH);
+
+  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+  digitalWrite(lmic_pins.nss, LOW);
+  SPI.transfer(0x42 & 0x7F);
+  uint8_t version = SPI.transfer(0x00);
+  digitalWrite(lmic_pins.nss, HIGH);
+  SPI.endTransaction();
+
+  return (version == 0x12 || version == 0x22);
+}
 
 void initSensors()
 {
+  LedStatus::update();
   // Feinstaubsensor SDS011 an
   senseBoxIO.powerUART(true);
   senseBoxIO.powerI2C(true);
   // Aufwärmphase Feinstaubsensor SDS011
   delay(3000); // Delay mind. 3000 minus was schon an delay im Code folgt...
+  LedStatus::update();
 
   // Sensor initialization
   DEBUG(F("Initializing sensors..."));
 #ifdef VEML6070_CONNECTED
   VEML.begin();
   delay(500);
+  LedStatus::update();
 #endif
 #ifdef HDC1080_CONNECTED
   HDC.begin();
@@ -135,9 +167,11 @@ void initSensors()
 #ifdef DISPLAY128x64_CONNECTED
   DEBUG(F("enable display..."));
   delay(2000);
+  LedStatus::update();
   display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
   display.display();
   delay(100);
+  LedStatus::update();
   display.clearDisplay();
   DEBUG(F("done."));
   display.setCursor(0, 0);
@@ -168,6 +202,12 @@ void sendSensors2Sleep()
 int currentReading = 0;
 void do_measurement(osjob_t *j)
 {
+  LedStatus::update();
+  if (LedStatus::hasErrors())
+  {
+    DEBUG(F("Error state: measurements stopped"));
+    return;
+  }
   // Read sensor values
   DEBUG(F("Measuring..."));
 
@@ -229,11 +269,14 @@ void do_measurement(osjob_t *j)
 #ifdef SDS011_CONNECTED
   DEBUG(F("PM..."));
   uint8_t attempt = 0;
+  bool pmReadOk = false;
   while (attempt < 5)
   {
+    LedStatus::update();
     bool error = SDS.read(&pm25, &pm10);
     if (!error)
     {
+      pmReadOk = true;
       DEBUG(pm10);
       DEBUG(pm25);
       if (pm10readings.size() <= MEASUREMENTS * 3) // better safe then sorry
@@ -250,11 +293,20 @@ void do_measurement(osjob_t *j)
         pm10max = pm10;
       }
       break;
-    }else{
+    }
+    else
+    {
       DEBUG(F("Error reading PM values"));
-      senseBoxIO.statusRed(); //TODO: Error handling--> SenseBox aus schalten
     }
     attempt++;
+  }
+  LedStatus::setErrorFlag(LedStatus::ERROR_SDS011, !pmReadOk);
+  LedStatus::update();
+  if (!pmReadOk)
+  {
+    LedStatus::logErrorFlags();
+    DEBUG(F("Error state: SDS011 -> measurements stopped"));
+    return;
   }
 
 #endif
@@ -295,6 +347,12 @@ void do_send(osjob_t *j)
   if (LMIC.opmode & OP_TXRXPEND)
   {
     DEBUG(F("OP_TXRXPEND, not sending"));
+  }
+  else if (LedStatus::hasErrors())
+  {
+    LedStatus::logErrorFlags();
+    DEBUG(F("Error state: sending stopped"));
+    return;
   }
   else if (doNotSendCritical)
   {
@@ -379,6 +437,7 @@ void do_send(osjob_t *j)
       DEBUG(F("canot calc median"));
       pm25median = pm25max;
       pm10median = pm10max;
+      // Keep readings for next interval to accumulate until MEASUREMENTS reached
     }
     DEBUG(F("PM10_MED: "));
     DEBUG(pm10median);
@@ -416,7 +475,9 @@ void do_send(osjob_t *j)
     }
     else
     {
+      DEBUG(F("canot calc sound median"));
       soundmedian = soundlevelmax;
+      // Keep readings for next interval to accumulate until MEASUREMENTS reached
     }
 
     message.addUint16(soundmedian * 10);
@@ -596,19 +657,33 @@ void update_display(osjob_t *t)
 void setup()
 {
 #ifdef ENABLE_DEBUG
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial)
     ;
 #endif
   String PostString = "Makerspace Partheland SenseBox Home LoRaWAN " + String(SENSEBOX_NAME) + " starting...";
   DEBUG(PostString);
-  senseBoxIO.powerXB2(false); // power off second XBEE Port
+#if LORA_XBEE_PORT == 1
+  #if LORA_POWER_OFF_UNUSED_PORT
+  senseBoxIO.powerXB2(false); // power off unused XBEE2 port
+  #endif
   delay(250);
   // RFM9X (LoRa-Bee) in XBEE1 Socket
   senseBoxIO.powerXB1(false); // power off to reset RFM9X
   delay(250);
   senseBoxIO.powerXB1(true); // power on
   delay(200);
+#elif LORA_XBEE_PORT == 2
+  #if LORA_POWER_OFF_UNUSED_PORT
+  senseBoxIO.powerXB1(false); // power off unused XBEE1 port
+  #endif
+  delay(250);
+  // RFM9X (LoRa-Bee) in XBEE2 Socket
+  senseBoxIO.powerXB2(false); // power off to reset RFM9X
+  delay(250);
+  senseBoxIO.powerXB2(true); // power on
+  delay(200);
+#endif
   senseBoxIO.powerUART(true);
 
   // Sensor initialization
@@ -618,14 +693,23 @@ void setup()
   DEBUG(F("Starting loop in 6 seconds."));
   delay(6000);
 
-  // LMIC init
-  os_init();
-  // Reset the MAC state. Session and pending data transfers will be discarded.
-  LMIC_reset();
+  loraReady = loraRadioPresent();
+  LedStatus::setErrorFlag(LedStatus::ERROR_LORA_INIT, !loraReady);
+  if (loraReady)
+  {
+    // LMIC init
+    os_init();
+    // Reset the MAC state. Session and pending data transfers will be discarded.
+    LMIC_reset();
 
-  do_measurement(&measurementjob);
-  // Start job (sending automatically starts OTAA too)
-  do_send(&sendjob);
+    do_measurement(&measurementjob);
+    // Start job (sending automatically starts OTAA too)
+    do_send(&sendjob);
+  }
+  else
+  {
+    DEBUG(F("LoRa init failed: radio not detected"));
+  }
 #ifdef DISPLAY128x64_CONNECTED
   update_display(&displayjob);
 #endif
@@ -633,12 +717,20 @@ void setup()
 
 void loop()
 {
-  os_runloop_once();
+  LedStatus::update();
+  if (LedStatus::hasErrors())
+  {
+    LedStatus::checkAndTriggerRestart();
+    return;
+  }
+  if (loraReady)
+  {
+    os_runloop_once();
+  }
 }
 
 void onEvent(ev_t ev)
 {
-  senseBoxIO.statusGreen();
   DEBUG(os_getTime());
   switch (ev)
   {
@@ -656,9 +748,13 @@ void onEvent(ev_t ev)
     break;
   case EV_JOINING:
     DEBUG(F("EV_JOINING"));
+    LedStatus::setJoinInProgress(true);
+    LedStatus::setJoined(false);
     break;
   case EV_JOINED:
     DEBUG(F("EV_JOINED"));
+    LedStatus::setJoinInProgress(false);
+    LedStatus::setJoined(true);
 
     // Disable link check validation (automatically enabled
     // during join, but not supported by TTN at this time).
@@ -669,9 +765,13 @@ void onEvent(ev_t ev)
     break;
   case EV_JOIN_FAILED:
     DEBUG(F("EV_JOIN_FAILED"));
+    LedStatus::setJoinInProgress(false);
+    LedStatus::setJoined(false);
     break;
   case EV_REJOIN_FAILED:
     DEBUG(F("EV_REJOIN_FAILED"));
+    LedStatus::setJoinInProgress(false);
+    LedStatus::setJoined(false);
     break;
   case EV_TXCOMPLETE:
     DEBUG(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
@@ -693,7 +793,6 @@ void onEvent(ev_t ev)
         // KILLSWITCH Bytes 0194
         doNotSendCritical = true;
         sendSensors2Sleep();
-        senseBoxIO.statusRed();
         DEBUG("Received doNotSendCritical");
       }
       else if (receivedmsg == 200)
@@ -701,7 +800,6 @@ void onEvent(ev_t ev)
         // Bytes 00C8
         doNotSendCritical = false;
         initSensors();
-        senseBoxIO.statusGreen();
         DEBUG("Received do normal TX Interval and do send");
       }
     }

@@ -1,3 +1,4 @@
+#pragma once
 
 #define I2C_ATECC  (0x60) // ATECC608
 #define I2C_ACCEL  (0x18) // BMX055

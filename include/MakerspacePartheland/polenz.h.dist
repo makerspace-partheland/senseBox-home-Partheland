@@ -11,22 +11,27 @@
 //#define ENABLE_DEBUG
 
 /* --- Sensebox Credentials and IDs ---- */
-#define SENSEBOX_ID "64370a125a16e300084365a5"
+#define SENSEBOX_ID "012345678901234567890123"
 //#define SENSEBOX_AUTH_TOKEN "Authentication token"
 #define SENSEBOX_NAME "makerspace-partheland-sensebox-polenz-1"
 
 /* --- LoRaWAN Configuration ---- */
 // DEVEUI in lsb format
-static const PROGMEM uint8_t DEVEUI[8] = { 0x96, 0xC8, 0x05, 0xD0, 0x7E, 0xD5, 0xB3, 0x70 };
+static const PROGMEM uint8_t DEVEUI[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 // APPEUI in lsb format
 static const PROGMEM uint8_t APPEUI[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 // APPKEY in msb format
-static const PROGMEM uint8_t APPKEY[16] = { 0xEA, 0xA6, 0x1F, 0xB8, 0xBA, 0x68, 0xE5, 0xD0, 0xC1, 0xA8, 0xAC, 0xDA, 0x49, 0xE7, 0x8C, 0x2E };
+static const PROGMEM uint8_t APPKEY[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 // The interval (in seconds) at which data is transmitted.
 static const unsigned TX_INTERVAL = 60;
 static const unsigned MEASUREMENTS = 30;        // Number of measurements per TX_INTERVAL
 static const unsigned MEASUREMENT_INTERVAL = 1; 
+
+// LoRa-XBEE Port selection: 1 = XBEE1, 2 = XBEE2
+#define LORA_XBEE_PORT 1
+// Power off the unused XBEE port by default
+#define LORA_POWER_OFF_UNUSED_PORT 1
 
 /* --- Connected sensors  ---- */
 // Temperatur & rel. Luftfeuchte - HDC1080

@@ -28,6 +28,11 @@ static const unsigned TX_INTERVAL = 120;
 static const unsigned MEASUREMENTS = 30;        // Number of measurements per TX_INTERVAL
 static const unsigned MEASUREMENT_INTERVAL = 1; 
 
+// LoRa-XBEE Port selection: 1 = XBEE1, 2 = XBEE2
+#define LORA_XBEE_PORT 1
+// Power off the unused XBEE port by default
+#define LORA_POWER_OFF_UNUSED_PORT 1
+
 // Angeschlossene Sensoren
 // Temperatur & rel. Luftfeuchte - HDC1080
 #define HDC1080_CONNECTED

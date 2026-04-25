@@ -24,9 +24,17 @@ static const PROGMEM uint8_t APPEUI[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 static const PROGMEM uint8_t APPKEY[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 // The interval (in seconds) at which data is transmitted.
-static const unsigned TX_INTERVAL = 60;
+//static const unsigned TX_INTERVAL = 60; //durch pv.h angezogen
 static const unsigned MEASUREMENTS = 30;        // Number of measurements per TX_INTERVAL
 static const unsigned MEASUREMENT_INTERVAL = 1; 
+
+// LC709203F thermistor configuration
+#define LC709203F_THERMISTOR_B 3435 //  Typ MF52 10K-B3435-L30
+
+// LoRa-XBEE Port selection: 1 = XBEE1, 2 = XBEE2
+#define LORA_XBEE_PORT 1
+// Power off the unused XBEE port by default
+#define LORA_POWER_OFF_UNUSED_PORT 1
 
 /* --- Connected sensors  ---- */
 // Temperatur & rel. Luftfeuchte - HDC1080

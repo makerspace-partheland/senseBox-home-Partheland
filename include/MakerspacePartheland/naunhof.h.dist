@@ -26,7 +26,15 @@ static const PROGMEM uint8_t APPKEY[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 // The interval (in seconds) at which data is transmitted.
 static const unsigned TX_INTERVAL = 60;
 static const unsigned MEASUREMENTS = 30;        // Number of measurements per TX_INTERVAL
-static const unsigned MEASUREMENT_INTERVAL = TX_INTERVAL/ MEASUREMENTS; // calculate the job interval based on the number of measurements and TX_INTERVAL
+static const unsigned MEASUREMENT_INTERVAL = 1; //static const unsigned MEASUREMENT_INTERVAL = TX_INTERVAL/ MEASUREMENTS; // calculate the job interval based on the number of measurements and TX_INTERVAL
+
+// LC709203F thermistor configuration
+#define LC709203F_THERMISTOR_B 3435 //  Typ MF52 10K-B3435-L30
+
+// LoRa-XBEE Port selection: 1 = XBEE1, 2 = XBEE2
+#define LORA_XBEE_PORT 1
+// Power off the unused XBEE port by default
+#define LORA_POWER_OFF_UNUSED_PORT 1
 
 /* --- Connected sensors  ---- */
 // Temperatur & rel. Luftfeuchte - HDC1080
@@ -51,7 +59,7 @@ static const unsigned MEASUREMENT_INTERVAL = TX_INTERVAL/ MEASUREMENTS; // calcu
 
 // Number of serial port the SDS011 is connected to. Either Serial1 or Serial2
 #ifdef SDS011_CONNECTED
-#define SDS_UART_PORT (Serial1)
+#define SDS_UART_PORT (Serial2) //2nd UART2!!!!
 #endif
 
 #ifdef SOUNDLEVELMETER_CONNECTED

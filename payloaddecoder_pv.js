@@ -16,7 +16,7 @@ function decodeUplink(input) {
         AKKU_SOC = 'Akku',
         AKKU_Voltage = 'Akku-Voltage',
         AKKU_Temp = 'Akku-Temp',
-        TX = 'TxInterval';
+        TX = 'TxInterval',
         PM10_MAX = 'PM10_Max',
         PM25_MAX = 'PM25_Max',
         SOUNDLEVELMETER_MAX = 'Lautstaerke_Max',
@@ -103,19 +103,21 @@ function decodeUplink(input) {
           uint16, //TEMPERATURE
           humidity, //HUMIDITY
           uint16, //PRESSURE
-          uint8, //LUX
-          uint16, //UV
-          uint8, //PM10
+          uint8, //LUX_mod
+          uint16, //LUX_times
+          uint8, //UV_mod
+          uint16, //UV_times
+          uint16, //PM10
           uint16, //PM25
           uint16, //SOUNDLEVELMETER
           uint16, //CASETEMPERATURE
-          humidity, //AKKU_SOC
+          uint8, //AKKU_SOC (changed from humidity to uint8)
           uint16, //AKKU_Voltage    
           uint16, //AKKU_Temp
-          uint16, //TX
-          uint16, //PM10_MAX
-          uint16, //PM25_MAX
-          uint16 //SOUNDLEVELMETER_MAX
+          uint16, //PM10_MAX - KORRIGIERT: kommt VOR TX
+          uint16, //PM25_MAX - KORRIGIERT: kommt VOR TX
+          uint16, //SOUNDLEVELMETER_MAX - KORRIGIERT: kommt VOR TX
+          uint8 //TX (changed from uint16 to uint8) - KORRIGIERT: kommt AM ENDE
         ],
         [
           TEMPERATURE,
@@ -132,10 +134,10 @@ function decodeUplink(input) {
           AKKU_SOC,
           AKKU_Voltage,
           AKKU_Temp,
-          TX,
           PM10_MAX,
           PM25_MAX,
-          SOUNDLEVELMETER_MAX
+          SOUNDLEVELMETER_MAX,
+          TX
         ]);
   
       // Temperatur
