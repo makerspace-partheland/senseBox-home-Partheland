@@ -584,11 +584,15 @@ void do_send(osjob_t *j)
         DEBUG(F("Critical threshold: "));
         DEBUG(VOLTAGE_VERY_LOW);
 
-        // Spannung nochmal prÃ¼fen - Sicherheitsabfrage, falls der Sensor falsche Werte liefert
-        if (voltage >= VOLTAGE_VERY_LOW)
+        // Spannung nochmal prüfen - Sicherheitsabfrage mit neuer Messung
+        const float recheckedVoltage = lc.cellVoltage();
+        if (recheckedVoltage >= VOLTAGE_VERY_LOW)
         {
           DEBUG(F("WARNING: Voltage not critical! Likely sensor error."));
+          DEBUG(F("Rechecked voltage: "));
+          DEBUG(recheckedVoltage);
           DEBUG(F("Set TxInterval to MAX_INTERVAL_S"));
+          voltage = recheckedVoltage;
           TxInterval = MAX_INTERVAL_S;
           highCounter = HIGH_MEASUREMENTS; // Erzwinge den hohen Status
           critCounter = 0;
