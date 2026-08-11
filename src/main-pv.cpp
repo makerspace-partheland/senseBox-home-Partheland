@@ -771,9 +771,9 @@ void do_send(osjob_t *j)
         DEBUG_SECTION(F("--- BATTERY (SEND) ---"));
         DEBUG_KV(F("SOC: "), soc);
         DEBUG_KV(F("Volt: "), voltage);
-        DEBUG_KV(F("TempBattery: "), cellTemp); // TODO: do we need this precision?
+        DEBUG_KV(F("TempBattery: "), cellTemp);
         // message.addHumidity(soc); //old, we need more space for the new data 2bytes --> 1byte
-        message.addUint8(soc); // TODO: payloadformatter fix
+        message.addUint8(soc);
         message.addUint16((voltage + 18) * 771);
         message.addUint16((cellTemp + 18) * 771);
       }
